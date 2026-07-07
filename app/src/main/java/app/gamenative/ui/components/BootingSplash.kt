@@ -6,6 +6,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,11 +20,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -218,46 +222,42 @@ fun BootingSplash(
             ) {
                 Spacer(modifier = Modifier.weight(0.4f))
 
-                // Logo with glow effect
+                // Logo lockup (mark + wordmark) with glow.
+                // Padding gives the blurred halo room; Unbounded keeps it from being clipped as the logo pulses.
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.scale(logoScale),
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .scale(logoScale),
                 ) {
-                    // Glow layer (blurred behind)
-                    Text(
-                        text = "GameNative",
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 36.sp,
-                            letterSpacing = 2.sp,
-                        ),
-                        color = PluviaTheme.colors.accentCyan.copy(alpha = glowAlpha * 0.6f),
+                    val logoPainter = painterResource(R.drawable.ic_logo_wordmark)
+
+                    // Glow halo: blurred copy behind, tinted with the progress bar's gradient
+                    // (cyan -> purple -> pink, left to right) via SrcAtop over the logo's alpha.
+                    Image(
+                        painter = logoPainter,
+                        contentDescription = null,
                         modifier = Modifier
-                            .blur(20.dp)
-                            .padding(20.dp)
-                            .alpha(glowAlpha),
+                            .size(width = 176.dp, height = 135.dp)
+                            .blur(32.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                            .alpha(glowAlpha)
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = Brush.horizontalGradient(BrandGradient),
+                                    blendMode = BlendMode.SrcAtop,
+                                )
+                            },
                     )
 
-                    // Main logo text
-                    Text(
-                        text = "GameNative",
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 36.sp,
-                            letterSpacing = 2.sp,
-                            shadow = Shadow(
-                                color = PluviaTheme.colors.accentCyan.copy(alpha = 0.5f),
-                                offset = Offset(0f, 0f),
-                                blurRadius = 20f,
-                            ),
-                            brush = Brush.horizontalGradient(
-                                colors = BrandGradient,
-                            ),
-                        ),
+                    Image(
+                        painter = logoPainter,
+                        contentDescription = "GameNative",
+                        modifier = Modifier.size(width = 170.dp, height = 130.dp),
                     )
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 ProgressBar(
                     progress = progress,
