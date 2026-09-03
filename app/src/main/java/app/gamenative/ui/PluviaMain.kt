@@ -611,17 +611,10 @@ fun PluviaMain(
                                 val targetRoute = viewModel.getPersistedRoute() ?: PluviaScreen.Home.route
                                 if (currentRoute == PluviaScreen.LoginUser.route) {
                                     navController.navigateFromLoginIfNeeded(targetRoute, "LogonEnded")
-                                } else if (currentRoute == PluviaScreen.Home.route + "?offline={offline}") {
-                                    val isCurrentlyOffline = navController.currentBackStackEntry
-                                        ?.arguments?.getBoolean("offline") ?: false
-                                    if (isCurrentlyOffline) {
-                                        navController.navigate(PluviaScreen.Home.route + "?offline=false") {
-                                            popUpTo(PluviaScreen.Home.route + "?offline={offline}") {
-                                                inclusive = true
-                                            }
-                                        }
-                                    }
                                 }
+                                // Already on Home: don't re-navigate to flip offline->online — that
+                                // recreated the Home destination (full list reload + black flash).
+                                // Home derives offline from live connection state instead.
                             }
                         }
 
@@ -1616,7 +1609,10 @@ fun PluviaMain(
                         },
                     ),
                 ) { backStackEntry ->
-                    val isOffline = backStackEntry.arguments?.getBoolean("offline") ?: false
+                    // Seed from the route arg, then follow the live Steam connection so auth flips
+                    // offline->online in place without recreating Home.
+                    val initialOffline = backStackEntry.arguments?.getBoolean("offline") ?: false
+                    val isOffline = initialOffline && !state.isSteamConnected
 
                     // Show update/crash/support dialogs when Home is first displayed
                     // Skip when offline with Steam credentials (avoid flash when Steam reconnects)
