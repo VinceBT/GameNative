@@ -47,6 +47,8 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Keyboard
@@ -103,6 +105,7 @@ import app.gamenative.data.GyroSettings
 import app.gamenative.powercontrol.PowerManager
 import app.gamenative.ui.component.dialog.GyroSettingsDialog
 import app.gamenative.ui.component.quickMenus.PowerControlQuickMenuTab
+import app.gamenative.ui.data.Achievement
 import app.gamenative.ui.data.PerformanceHudConfig
 import app.gamenative.ui.data.PerformanceHudSize
 import app.gamenative.ui.theme.PluviaTheme
@@ -139,6 +142,7 @@ private object QuickMenuTab {
     const val IMMERSIVE = 5
     const val INVITE = 6
     const val POWER = 7
+    const val ACHIEVEMENTS = 8
 }
 
 private class GyroQuickMenuState(private val container: Container) {
@@ -390,6 +394,9 @@ fun QuickMenu(
     /** Lets the menu open itself when the running game asks for its Steam invite dialog. */
     onRequestOpen: () -> Unit = {},
     immersiveHooks: app.gamenative.ui.screen.xr.ImmersiveSessionHooks? = null,
+    achievements: List<Achievement> = emptyList(),
+    hasAchievements: Boolean = false,
+    onOpenAchievements: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val immersiveControls = immersiveHooks?.controls
@@ -534,6 +541,7 @@ fun QuickMenu(
                 PrefManager.quickMenuLastTab == QuickMenuTab.INVITE && inviteMenu == null -> QuickMenuTab.HUD
                 PrefManager.quickMenuLastTab == QuickMenuTab.POWER -> QuickMenuTab.HUD
                 PrefManager.quickMenuLastTab == QuickMenuTab.IMMERSIVE && immersiveControls == null -> QuickMenuTab.HUD
+                PrefManager.quickMenuLastTab == QuickMenuTab.ACHIEVEMENTS && !hasAchievements -> QuickMenuTab.HUD
                 else -> PrefManager.quickMenuLastTab
             }
         )
@@ -546,6 +554,7 @@ fun QuickMenu(
         QuickMenuTab.INVITE -> R.string.steam_invite_tab_title
         QuickMenuTab.POWER -> R.string.power_control
         QuickMenuTab.IMMERSIVE -> R.string.quick_menu_tab_immersive
+        QuickMenuTab.ACHIEVEMENTS -> R.string.achievements_tab
         else -> R.string.quick_menu_tab_controller
     }
 
@@ -563,6 +572,7 @@ fun QuickMenu(
     val effectsItemFocusRequester = remember { FocusRequester() }
     val controllerItemFocusRequester = remember { FocusRequester() }
     val toolsItemFocusRequester = remember { FocusRequester() }
+    val achievementsItemFocusRequester = remember { FocusRequester() }
     val lsfgItemFocusRequester = remember { FocusRequester() }
     val inviteTabFocusRequester = remember { FocusRequester() }
     val inviteItemFocusRequester = remember { FocusRequester() }
@@ -890,6 +900,20 @@ fun QuickMenu(
                                         focusRequester = immersiveTabFocusRequester,
                                     )
                                 }
+                                if (hasAchievements) {
+                                    QuickMenuTabButton(
+                                        icon = Icons.Default.EmojiEvents,
+                                        contentDescriptionResId = R.string.achievements_tab,
+                                        selected = selectedTab == QuickMenuTab.ACHIEVEMENTS,
+                                        accentColor = PluviaTheme.colors.accentPurple,
+                                        onSelected = {
+                                            selectedTab = QuickMenuTab.ACHIEVEMENTS
+                                            PrefManager.quickMenuLastTab = selectedTab
+                                        },
+                                        modifier = Modifier.width(56.dp),
+                                        focusRequester = achievementsItemFocusRequester,
+                                    )
+                                }
                             }
 
                             Box(
@@ -1051,6 +1075,15 @@ fun QuickMenu(
                                         }
                                     }
 
+                                    QuickMenuTab.ACHIEVEMENTS -> {
+                                        AchievementsQuickMenuTab(
+                                            achievements = achievements,
+                                            onViewAll = onOpenAchievements,
+                                            firstItemFocusRequester = achievementsItemFocusRequester,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+
                                     QuickMenuTab.CONTROLLER -> {
                                         Column(
                                             modifier = Modifier
@@ -1154,6 +1187,7 @@ fun QuickMenu(
                         QuickMenuTab.POWER -> powerItemFocusRequester.requestFocus()
                         QuickMenuTab.TOOLS -> toolsItemFocusRequester.requestFocus()
                         QuickMenuTab.IMMERSIVE -> immersiveItemFocusRequester.requestFocus()
+                        QuickMenuTab.ACHIEVEMENTS -> achievementsItemFocusRequester.requestFocus()
                         else -> controllerItemFocusRequester.requestFocus()
                     }
                     Timber.i("QuickMenu: requestFocus succeeded for tab=%d on attempt=%d", selectedTab, attempt)

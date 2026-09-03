@@ -120,6 +120,10 @@ import app.gamenative.ui.component.QuickMenuAction
 import app.gamenative.ui.component.SteamInviteState
 import app.gamenative.ui.component.parseBooleanExtra
 import app.gamenative.ui.component.parsePositiveFpsLimit
+import app.gamenative.ui.data.Achievement
+import app.gamenative.ui.data.fetchAchievementsForDisplayRetrying
+import app.gamenative.ui.data.hasDisplayableAchievements
+import app.gamenative.ui.data.sortedForDisplay
 import app.gamenative.ui.data.PerformanceHudConfig
 import app.gamenative.ui.data.PerformanceHudSize
 import app.gamenative.ui.data.XServerState
@@ -420,6 +424,7 @@ fun XServerScreen(
     // Non-null only when hosted by ImmersiveXrActivity. One bundled parameter, not nine — this
     // composable sits at the dex verifier's register limit (see ImmersiveSessionHooks' kdoc).
     immersiveHooks: app.gamenative.ui.screen.xr.ImmersiveSessionHooks? = null,
+    navigateToAchievements: (appId: String) -> Unit = {},
 ) {
     Timber.i("Starting up XServerScreen")
     val context = LocalContext.current
@@ -657,7 +662,13 @@ fun XServerScreen(
     var performanceHudConfig by remember { mutableStateOf(loadPerformanceHudConfig()) }
     var performanceHudView by remember { mutableStateOf<PerformanceHudView?>(null) }
     var performanceHudHost by remember { mutableStateOf<FrameLayout?>(null) }
+    var achievements by remember(gameId) { mutableStateOf<List<Achievement>?>(null) }
     var isDraggingPerformanceHud by remember { mutableStateOf(false) }
+
+    LaunchedEffect(gameId) {
+        // Only used to gate the quick-menu tab; the modal re-fetches from its own destination.
+        achievements = fetchAchievementsForDisplayRetrying(gameId)
+    }
     var isTrackingPerformanceHudTouch by remember { mutableStateOf(false) }
     var performanceHudTouchDownRawX by remember { mutableStateOf(0f) }
     var performanceHudTouchDownRawY by remember { mutableStateOf(0f) }
@@ -2920,6 +2931,12 @@ fun XServerScreen(
                         resumeIfAllowedAfterOverlay()
                     }
                 }
+            },
+            achievements = achievements.orEmpty().sortedForDisplay(),
+            hasAchievements = hasDisplayableAchievements(achievements),
+            onOpenAchievements = {
+                dismissOverlayMenu()
+                navigateToAchievements(appId)
             },
         )
 
