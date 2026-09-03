@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
@@ -95,6 +96,7 @@ import app.gamenative.ui.component.AchievementOverlay
 import app.gamenative.ui.component.ConnectionStatusBanner
 import app.gamenative.ui.component.GameInviteOverlay
 import app.gamenative.ui.component.ScreenshotToastOverlay
+import app.gamenative.ui.component.dialog.AchievementsListContent
 import app.gamenative.ui.component.dialog.ContainerConfigDialog
 import app.gamenative.ui.component.dialog.DebugPreRunDialog
 import app.gamenative.ui.component.dialog.DebugReportDialog
@@ -105,6 +107,9 @@ import app.gamenative.ui.component.dialog.state.DebugReportDialogState
 import app.gamenative.ui.component.dialog.state.GameFeedbackDialogState
 import app.gamenative.ui.component.dialog.state.MessageDialogState
 import app.gamenative.ui.components.BootingSplash
+import app.gamenative.ui.data.Achievement
+import app.gamenative.ui.data.fetchAchievementsForDisplayRetrying
+import app.gamenative.ui.data.sortedForDisplay
 import app.gamenative.ui.enums.AppOptionMenuType
 import app.gamenative.ui.enums.ConnectionState
 import app.gamenative.ui.enums.DialogType
@@ -1845,6 +1850,9 @@ fun PluviaMain(
                         navigateToScreenshotGallery = { appId, index ->
                             navController.navigate(PluviaScreen.ScreenshotGallery.route(appId, index))
                         },
+                        navigateToAchievements = { appId ->
+                            navController.navigate(PluviaScreen.Achievements.route(appId))
+                        },
                     )
                 }
 
@@ -1906,6 +1914,75 @@ fun PluviaMain(
                             initialViewerIndex = initialViewerIndex,
                             onBack = dismissGallery,
                         )
+                    }
+                }
+
+                /** Achievements list, a dialog destination so the running game below stays composed
+                 *  but pauses its immersive enforcement **/
+                dialog(
+                    route = PluviaScreen.Achievements.route,
+                    arguments = listOf(
+                        navArgument(PluviaScreen.Achievements.ARG_APP_ID) {
+                            type = NavType.StringType
+                        },
+                    ),
+                    dialogProperties = DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        decorFitsSystemWindows = false,
+                    ),
+                ) { backStackEntry ->
+                    val achievementsAppId = backStackEntry.arguments
+                        ?.getString(PluviaScreen.Achievements.ARG_APP_ID).orEmpty()
+                    val achievementsGameId = remember(achievementsAppId) {
+                        ContainerUtils.extractGameIdFromContainerId(achievementsAppId)
+                    }
+                    var achievements by remember(achievementsGameId) {
+                        mutableStateOf<List<Achievement>?>(null)
+                    }
+                    LaunchedEffect(achievementsGameId) {
+                        achievements = fetchAchievementsForDisplayRetrying(achievementsGameId)
+                    }
+
+                    // The dialog gets its own window; keep it as immersive as the activity underneath.
+                    val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+                    SideEffect {
+                        dialogWindow?.let { window ->
+                            window.setDimAmount(0f)
+                            WindowCompat.setDecorFitsSystemWindows(window, false)
+                            WindowInsetsControllerCompat(window, window.decorView).apply {
+                                hide(WindowInsetsCompat.Type.systemBars())
+                                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            }
+                        }
+                    }
+
+                    val achievementsVisible = remember {
+                        MutableTransitionState(false).apply { targetState = true }
+                    }
+                    LaunchedEffect(achievementsVisible.isIdle) {
+                        if (achievementsVisible.isIdle && !achievementsVisible.currentState) {
+                            navController.popBackStack()
+                        }
+                    }
+                    val dismissAchievements = { achievementsVisible.targetState = false }
+                    BackHandler { dismissAchievements() }
+
+                    val loadedAchievements = achievements
+                    if (loadedAchievements != null) {
+                        AchievementsListContent(
+                            achievements = loadedAchievements.sortedForDisplay(),
+                            visibleState = achievementsVisible,
+                            onRequestDismiss = dismissAchievements,
+                        )
+                    } else {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
                     }
                 }
 

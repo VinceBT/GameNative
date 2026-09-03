@@ -2373,6 +2373,8 @@
 
     <!-- Steam achievements -->
     <string name="achievements">Achievements</string>
+    <string name="achievements_tab">Achievements</string>
+    <string name="achievements_recent">Recent achievements</string>
     <string name="achievements_all_title">All Achievements</string>
     <string name="achievements_unlocked_at">Unlocked on %1$s at %2$s</string>
     <string name="achievements_complete">All achievements unlocked</string>

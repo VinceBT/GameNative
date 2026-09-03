@@ -20,4 +20,8 @@ sealed class PluviaScreen(val route: String) {
         const val ARG_APP_ID = "appId"
         const val ARG_INDEX = "index"
     }
+    data object Achievements : PluviaScreen("achievements/{appId}") {
+        fun route(appId: String) = "achievements/${Uri.encode(appId)}"
+        const val ARG_APP_ID = "appId"
+    }
 }
